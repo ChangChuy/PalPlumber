@@ -1,54 +1,90 @@
-[gd_scene load_steps=13 format=3 uid="uid://dm2nw0x63kv2s"]
+[gd_scene load_steps=15 format=3 uid="uid://dm2nw0x63kv2s"]
 
 [ext_resource type="Texture2D" uid="uid://c2or66lfs3xlb" path="res://animation/player.png" id="1_04584"]
+[ext_resource type="Resource" uid="uid://li5mu8kmsaug" path="res://defaultMovementData.tres" id="1_hovdf"]
 
 [sub_resource type="GDScript" id="GDScript_4q06s"]
 script/source = "extends CharacterBody2D
 
-
-const SPEED = 300.0
-const JUMP_VELOCITY = -400.0
-const ACCELERATION = 600.0 
-const FRICTION = 1000.0
+@export var movement_data : PlayerMovementData
 
 # Get the gravity from the project settings to be synced with RigidBody nodes.
 var gravity = ProjectSettings.get_setting(\"physics/2d/default_gravity\")
-
+var air_jump = false 
+var starting_position = global_position
 
 func _physics_process(delta):
 	# Add the gravity.
 	apply_gravity(delta)
 	handle_jump()
+	handle_wall_jump()
 	handle_xaxis_movement(delta)
-	move_and_slide()
+	handle_hazard()
 	
+	# It's a really bad code but this check when should the cayote timer start
+	var was_on_floor = is_on_floor()
+	move_and_slide()
+	# I'm checking if the velocity of greater or equal to zero means its falling no ?
+	if was_on_floor and !is_on_floor() and velocity.y >= 0:
+		%CoyoteJumpTimer.start()
+
+func handle_hazard(): 
+	
+	var damaged = %HurtBox.get_overlapping_bodies()
+	if damaged.size() > 0:
+		global_position = starting_position
+		
+
 func apply_gravity(delta):
 	# abstract it away for the gravity side  
 	if not is_on_floor():
 		velocity.y += gravity * delta
 		
+func handle_wall_jump(): 
+	# find if its on wall then find wall vector 
+	var wall_normal = get_wall_normal()
+	if is_on_wall_only():
+		if Input.is_action_just_pressed(\"jump\"):
+			velocity.x = wall_normal.x * movement_data.SPEED
+			velocity.y = movement_data.JUMP_VELOCITY
+	else: 
+		return
+		
 func handle_jump():
 	# if its on the floor then player can jump normally 
 	# if not the they can't half jump on release. 
-	if is_on_floor():
+	if (is_on_floor() || ! %CoyoteJumpTimer.is_stopped()):
+		air_jump = true
 		if Input.is_action_just_pressed(\"jump\"):
-			velocity.y += JUMP_VELOCITY
+			velocity.y += movement_data.JUMP_VELOCITY
 	else:
 		%AnimatedSprite2D.play(\"jump\")
-		if Input.is_action_just_released(\"jump\") and velocity.y < JUMP_VELOCITY/2:
-			velocity.y = JUMP_VELOCITY/2 
+		if Input.is_action_just_released(\"jump\") and velocity.y < movement_data.JUMP_VELOCITY/2:
+			velocity.y = movement_data.JUMP_VELOCITY/2 
+		if air_jump and Input.is_action_just_pressed(\"jump\"):
+			velocity.y = movement_data.JUMP_VELOCITY * 0.8
+			air_jump = false 
+			
 			
 func handle_xaxis_movement(delta):
 	# identify if moving left or right is being pressed 
 	# apply velocity along with friction, using the move towards fucntion
 	var xaxis_movement = Input.get_axis(\"move_left\",\"move_right\")
 	if xaxis_movement:
-		%AnimatedSprite2D.flip_h = (xaxis_movement < 0)		
+		if is_on_floor():
+			velocity.x = move_toward(velocity.x, movement_data.SPEED * xaxis_movement , movement_data.ACCELERATION * delta)
+		else:
+			velocity.x = move_toward(velocity.x, movement_data.SPEED * xaxis_movement , movement_data.AIRACCELERATION * delta)
 		%AnimatedSprite2D.play(\"run\")
-		velocity.x = move_toward(velocity.x, SPEED * xaxis_movement , ACCELERATION * delta)
+		%AnimatedSprite2D.flip_h = (xaxis_movement < 0)		
+
 	else:
+		if (is_on_floor()):
+			velocity.x = move_toward(velocity.x, 0 , movement_data.FRICTION * delta)
+		else: 
+			velocity.x = move_toward(velocity.x, 0 , movement_data.AIRFRICTION * delta)
 		%AnimatedSprite2D.play(\"idle\")
-		velocity.x = move_toward(velocity.x, 0 , FRICTION * delta)
+		
 "
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_c5tbm"]
@@ -128,16 +164,43 @@ animations = [{
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_iwdwy"]
 size = Vector2(14, 17)
 
-[node name="CharacterBody2D" type="CharacterBody2D"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_4isgx"]
+size = Vector2(9.5, 13)
+
+[node name="player" type="CharacterBody2D"]
+position = Vector2(36, 57)
+collision_layer = 2
+floor_snap_length = 3.0
+safe_margin = 0.1
 script = SubResource("GDScript_4q06s")
+movement_data = ExtResource("1_hovdf")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 unique_name_in_owner = true
 position = Vector2(0, -9)
 sprite_frames = SubResource("SpriteFrames_kd5a8")
-animation = &"jump"
-frame_progress = 0.713378
+animation = &"run"
+frame = 5
+frame_progress = 0.900297
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -8)
 shape = SubResource("RectangleShape2D_iwdwy")
+
+[node name="CoyoteJumpTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.1
+one_shot = true
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(0, -44)
+
+[node name="HurtBox" type="Area2D" parent="."]
+unique_name_in_owner = true
+collision_layer = 0
+collision_mask = 4
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HurtBox"]
+position = Vector2(0, -7)
+shape = SubResource("RectangleShape2D_4isgx")
+debug_color = Color(0.984314, 0, 0.345098, 0.419608)

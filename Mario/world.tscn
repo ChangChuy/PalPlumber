@@ -1,17 +1,126 @@
-[gd_scene load_steps=3 format=3 uid="uid://b8p2smhwwkb8r"]
+[gd_scene load_steps=8 format=3 uid="uid://b8p2smhwwkb8r"]
 
 [ext_resource type="Script" path="res://world.gd" id="1_5qkw5"]
 [ext_resource type="PackedScene" uid="uid://dm2nw0x63kv2s" path="res://player.tscn" id="2_ebrtf"]
+[ext_resource type="PackedScene" uid="uid://bty2l6td2b350" path="res://HUD.tscn" id="5_hbg6j"]
+[ext_resource type="PackedScene" uid="uid://c1eg8l2ybc6jc" path="res://level_tile_map.tscn" id="6_7rm1b"]
+
+[sub_resource type="Animation" id="Animation_q507q"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("CanvasLayer/StartCountDown/CenterContainer/CountDownText:text")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": ["Start in : 3"]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("CanvasLayer/StartCountDown:visible")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+
+[sub_resource type="Animation" id="Animation_0e2he"]
+resource_name = "countdownAnimation"
+length = 2.9
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("CanvasLayer/StartCountDown/CenterContainer/CountDownText:text")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.8, 1.8, 2.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1),
+"update": 1,
+"values": ["Start in : 3", "Start in : 2", "Start in : 1", "Go"]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("CanvasLayer/StartCountDown:visible")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 2.8),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [true, false]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_v7g17"]
+_data = {
+"RESET": SubResource("Animation_q507q"),
+"countdownAnimation": SubResource("Animation_0e2he")
+}
 
 [node name="World" type="Node2D"]
 script = ExtResource("1_5qkw5")
 
-[node name="StaticBody2D" type="StaticBody2D" parent="."]
-
-[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="StaticBody2D"]
-polygon = PackedVector2Array(0, 0, 16, 0, 16, 104, 48, 104, 80, 120, 112, 120, 128, 104, 152, 104, 152, 152, 176, 152, 176, 104, 200, 104, 224, 104, 224, 136, 248, 136, 288, 120, 320, 120, 320, 144, 352, 144, 352, 104, 368, 104, 368, 128, 384, 128, 384, 88, 400, 88, 400, 112, 416, 112, 416, 64, 432, 64, 432, 0, 448, 0, 448, 192, 0, 192)
-
-[node name="Polygon2D" type="Polygon2D" parent="StaticBody2D"]
-
 [node name="CharacterBody2D" parent="." instance=ExtResource("2_ebrtf")]
-position = Vector2(32, 80)
+position = Vector2(0, 8)
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="HUD" parent="CanvasLayer" instance=ExtResource("5_hbg6j")]
+unique_name_in_owner = true
+visible = false
+
+[node name="StartCountDown" type="ColorRect" parent="CanvasLayer"]
+unique_name_in_owner = true
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.0331269)
+
+[node name="CenterContainer" type="CenterContainer" parent="CanvasLayer/StartCountDown"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CountDownText" type="Label" parent="CanvasLayer/StartCountDown/CenterContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Start in : 3"
+
+[node name="TimerDisplay" type="Label" parent="CanvasLayer"]
+unique_name_in_owner = true
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 23.0
+grow_horizontal = 2
+horizontal_alignment = 1
+
+[node name="levelTileMap" parent="." instance=ExtResource("6_7rm1b")]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+unique_name_in_owner = true
+process_mode = 3
+libraries = {
+"": SubResource("AnimationLibrary_v7g17")
+}
+
+[node name="Timer" type="Timer" parent="."]
+unique_name_in_owner = true
+one_shot = true
+
+[connection signal="next_level" from="CanvasLayer/HUD" to="." method="_on_hud_next_level"]
+[connection signal="retry" from="CanvasLayer/HUD" to="." method="_on_hud_retry"]
